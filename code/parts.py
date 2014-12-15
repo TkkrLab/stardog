@@ -265,52 +265,45 @@ class Part(Floater):
 			surface.blit(self.buffer, pos.inttup())
 			self.buffer.fill((0,0,0,0))
 
-	def takeDamage(self, damage, other):
-		from spaceship import Player
-		hitByPlayer = False
-		if isinstance(other, Bullet) and other.ship == self.game.player:
-			hitByPlayer = True
-			self.game.player.xpDamage(self, damage)
-		if self.parent and self.parent != self.ship \
-		and not isinstance(self.ship, Player) \
-		and rand() <  1. * damage / (self.hp + 1):
-			self.detach()
-		self.hp -= damage
-		if self.hp <= 0:
-			if hitByPlayer:
-				self.game.player.xpDestroy(self)
-				if self.ship:
-					self.game.player.xpKill(self.ship)
-			if self.parent:
-				self.detach()
-			self.kill()
-			#if dead, make an explosion here.
-			self.game.curSystem.add(Explosion(self.game, self.pos, \
-						self.delta, radius = self.radius * 4,\
-						time = self.maxhp / 5))
-	def collide(self):
+	# def takeDamage(self, other):
+	# 	from spaceship import Player
+	# 	hitByPlayer = False
+	# 	if isinstance(other, Bullet) and other.ship == self.game.player:
+	# 		hitByPlayer = True
+	# 		self.game.player.xpDamage(self, other.hp)
+	# 	if self.parent and self.parent != self.ship \
+	# 	and not isinstance(self.ship, Player) \
+	# 	and rand() <  1. * other.hp / (self.hp + 1):
+	# 		self.detach()
+	# 	self.hp -= other.initialhp
+	# 	print self.hp
+	# 	if self.hp <= 0:
+	# 		if hitByPlayer:
+	# 			self.game.player.xpDestroy(self)
+	# 			if self.ship:
+	# 				self.game.player.xpKill(self.ship)
+	# 		if self.parent:
+	# 			self.detach()
+	# 		self.kill()
+	# 		#if dead, make an explosion here.
+	# 		self.game.curSystem.add(Explosion(self.game, self.pos, \
+	# 					self.delta, radius = self.radius * 4,\
+	# 					time = self.maxhp / 5))
+
+	def takeDamage(self, other):
 		pass
 
-	def collideShip(self):
-		pass
+	def collide(self, other):
+		if isinstance(other, Bullet):
+			self.crash(other)
 
-	def collidePlanet(self):
-		pass
+	def crash(self, other):
+		
+		if soundModule:
+			setVolume(hitSound.play(), self, other)
+		self.takeDamage(other)
 
-	def collideBullet(self):
-		pass
 
-
-	# ship - ship
-	# ship - freepart
-	# ship - planet
-	# planet - freepart
-	# bullet - freepart
-	# bullet - planet
-	# ship - bullet
-	# explotion - floater
-	# planet - planet
-	# floater - floater
 
 class Dummy(Part):
 	"""A dummy part used by the parts menu."""

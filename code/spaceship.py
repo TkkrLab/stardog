@@ -5,6 +5,7 @@ from parts import *
 from partCatalog import *
 from floaters import *
 from pygame.locals import *
+from planet import *
 import stardog
 from adjectives import addAdjective
 from skills import *
@@ -223,6 +224,7 @@ class Ship(Floater):
 	def insertInInventory(self, part, amount=1):
 		for i in range(amount):
 			self.inventory.append(part(self.game))
+
 	def addPart(self, part, portIndex = 0):
 		"""ship.addPart(part) -> Sets the main part for this ship.
 		Only used for the base part (usually a cockpit), other parts are added to parts."""
@@ -425,7 +427,7 @@ class Ship(Floater):
 		#shield:
 		if self.hp > .0002:
 			r = int(self.radius)
-			shieldColor = (50,100,200, int(255. / 3 * self.hp / self.maxhp) )
+			shieldColor = (50,100,200, int(255. / 3 * (self.hp+0.01) / (self.maxhp+0.01)) )
 			pygame.draw.circle(buffer, shieldColor, \
 						(r, r), r, 0)
 			pygame.draw.circle(buffer, (50,50,0,50), \
@@ -439,10 +441,10 @@ class Ship(Floater):
 		pos[1] += - imageOffset[1] - self.radius
 		surface.blit(buffer, pos) 
 		
-	def takeDamage(self, damage, other):
-		self.hp = max(self.hp - damage, 0)
+	def takeDamage(self, other):
 		if isinstance(other, Bullet) and other.ship == self.game.player:
-			self.game.player.xpDamage(self, damage)
+			self.game.player.xpDamage(self, self.hp)
+		super(Ship, self).takeDamage(other)
 
 	def kill(self):
 		"""play explosion effect than call Floater.kill(self)"""
@@ -451,6 +453,107 @@ class Ship(Floater):
 		for part in self.inventory:
 			part.scatter(self)
 		Floater.kill(self)
+
+	def collide(self, other):
+		if isinstance(other, Part): 
+			if other.parent == None:
+				self.collideFreePart(other)
+		elif isinstance(other, Planet):
+			self.collidePlanet(other)
+		elif isinstance(other, Ship):
+			self.collideShip(other)
+		elif isinstance(other, Bullet):
+			self.collideBullet(other)
+		# else:
+		# 	super(Ship, self).collide(other)
+
+
+	def collideShip(self, other):
+
+		if (sign(other.pos.x - self.pos.x) == - sign(other.delta.x - self.delta.x) \
+		or sign(other.pos.y - self.pos.y) == - sign(other.delta.y - self.delta.y)):
+			if self.hp >= 0:
+				self.crash(other)
+			else:
+				for part in self.parts:
+					part.crash(other)
+
+				
+		#shield ship/no shield ship (or less shield than this one)
+		# if isinstance(other, Ship) and other.hp <= 0:
+		# 	for part in other.parts:
+		# 		if self.collide( part):
+		# 			#if that returned true, everything
+		# 			#should be done already.
+		# 			return True
+
+	def collidePlanet(self, other):
+		if  sign(other.pos.x - self.pos.x) == sign(other.delta.x - self.delta.x) \
+		and sign(other.pos.y - self.pos.y) == sign(other.delta.y - self.delta.y):# moving away from planet.
+			return
+
+		angle = (other.pos - self.pos).get_angle()
+		dx, dy = rotate(self.delta.x, self.delta.y, angle)
+		speed = sqrt(dy ** 2 + dx ** 2)
+		if speed > other.LANDING_SPEED:
+			if other.damage.has_key(self):
+				damage = other.damage[self]
+			else:
+				if soundModule:
+					setVolume(hitSound.play(), other, other.game.player)
+				#set damage based on incoming speed and mass.
+				damage = speed * self.mass * other.PLANET_DAMAGE
+			for part in self.parts:
+				if collisionTest(other, part):
+					temp = part.hp
+					part.takeDamage(other)
+					damage -= temp
+					if damage <= 0:
+						r = self.radius + other.radius
+						self.delta = self.delta * (self.pos - other.pos) + self.delta * -(self.pos - other.pos)
+						if other.damage.has_key(self):
+							del other.damage[self]
+						return
+			if damage > 0:
+				other.damage[self] = damage
+		else:
+			#landing:
+			if self == other.game.player and not self.landed:
+				other.game.pause = True
+				self.landed = other
+				self.game.menu.parts.reset()
+			self.delta.x, self.delta.y = other.delta.x, other.delta.y
+
+
+
+	def collideFreePart(self, other):	
+		other.kill()
+		self.inventory.append(other)
+		if self.game.player == self:
+			self.game.menu.parts.inventoryPanel.reset() #TODO: make not suck
+	
+	def collideBullet(self, other):
+		if self.hp <= 0:
+			for part in self.parts:
+				if collisionTest(other, part):
+					part.collide(other)
+					other.collide(part)
+
+					
+
+
+
+	# ship - ship
+	# ship - freepart
+	# ship - planet
+	# planet - freepart
+	# bullet - freepart
+	# bullet - planet
+	# ship - bullet
+	# explotion - floater
+	# planet - planet
+	# floater - floater
+
 
 class Player(Ship):
 	xp = 0

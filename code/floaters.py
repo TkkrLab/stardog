@@ -42,6 +42,7 @@ class Floater(pygame.sprite.Sprite, Ballistic):
 	and	a .bmp, which is used depends on the pygame support on the run
 	system."""
 	hp = 1
+
 	baseImage = None
 	color = (200, 200, 0)
 	mass = 1
@@ -52,6 +53,7 @@ class Floater(pygame.sprite.Sprite, Ballistic):
 		pygame.sprite.Sprite.__init__(self)
 		self.game = game
 		self.dir = dir
+		self.initialhp = self.hp
 		self.pos = pos
 		self.delta = delta
 
@@ -69,8 +71,9 @@ class Floater(pygame.sprite.Sprite, Ballistic):
 		self.rect.centerx = int(self.pos.x)
 		self.rect.centery =	int(self.pos.y)
 
-	def takeDamage(self, damage, other):
-		self.hp -= damage
+	def takeDamage(self, other):
+
+		self.hp -= other.hp
 		if self.hp <= 0:
 			self.kill()
 
@@ -80,14 +83,17 @@ class Floater(pygame.sprite.Sprite, Ballistic):
 			  self.pos.y - self.image.get_height() / 2 - offset[1]
 		surface.blit(self.image, poss)
 
-	def addCollider(self, floater):
-		self.collisions.append(floater)
 
-	def collide(self):
-		pass
+	def collide(self, other):
+		self.crash(other)
 
-	def floaterCollide(self):
-		pass
+
+	def crash(self, other):
+		if soundModule:
+			setVolume(hitSound.play(), self, other)
+		other.takeDamage(self)
+		self.takeDamage(other)
+
 
 
 
@@ -118,7 +124,7 @@ class Bullet(Floater):
 							dir = dir, radius = gun.bulletRadius, \
 							image = image)
 		self.range = range
-		self.hp = damage
+		self.hp  = damage
 		self.life = 0.
 		self.ship = gun.ship
 		if 'target' in gun.ship.__dict__:
@@ -145,14 +151,16 @@ class Bullet(Floater):
 		Floater.kill(self)
 
 
-	def collide(self):
-		pass
+	# def collide(self, other):
+	# 	self.crash(other)
+	# 	return True
 
-	def collidePart(self):
-		pass
 
-	def collidePlanet(self):
-		pass
+	# def crash(self, other):
+	# 	if soundModule:
+	# 		setVolume(hitSound.play(), self, other)
+	# 	if self.hp > 0:
+	# 		self.takeDamage(other)
 
 	
 
@@ -210,9 +218,9 @@ class Missile(Bullet):
 			setVolume(missileSound.play(), self, self.game.player)
 		Floater.kill(self)
 
-	def takeDamage(self, damage, other):
-		self.impacted = other
-		Floater.takeDamage(self, damage, other)
+	# def takeDamage(self, other):
+	# 	self.impacted = other
+	# 	Floater.takeDamage(other)
 
 class Mine(Bullet):
 	tangible = True
@@ -255,9 +263,9 @@ class Mine(Bullet):
 			setVolume(missileSound.play(), self, self.game.player)
 		Floater.kill(self)
 
-	def takeDamage(self, damage, other):
+	def takeDamage(self, other):
 		self.impacted = other
-		Floater.takeDamage(self, damage, other)
+		Floater.takeDamage(other)
 
 class Explosion(Floater):
 	life = 0
@@ -307,7 +315,7 @@ class Explosion(Floater):
 	def kill(self):
 		pass
 		
-	def takeDamage(self, damage, other):
+	def takeDamage(self, other):
 		pass
 
 class Impact(Floater):
@@ -349,7 +357,7 @@ class Impact(Floater):
 			pygame.draw.circle(self.image, color, poss, radius)
 		Floater.draw(self, surface, offset)
 
-	def takeDamage(self, damage, other):
+	def takeDamage(self, other):
 		pass
 
 	
@@ -432,7 +440,7 @@ class LaserBeam(Floater):
 			#hit until damage is used up
 			for floater in colliders:
 				tmp = floater.hp
-				floater.takeDamage(self.damage, self)
+				floater.takeDamage( self)
 				self.damage -= tmp
 				if self.damage < 1: #fudge it for effect: 1 not 0
 					#adjust stop based on last hit target:
@@ -452,7 +460,7 @@ class LaserBeam(Floater):
 			self.kill()
 	
 		
-	def takeDamage(self, damage, other):
+	def takeDamage(self, other):
 		pass
 	
 		
